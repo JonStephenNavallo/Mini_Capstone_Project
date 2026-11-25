@@ -19,11 +19,11 @@ def _env_bool(name, default=True):
 DEBUG = False
 DEV_MODE = False
 
-# Require a strong, non-default SECRET_KEY in production.
+# Require a strong, non-default SECRET_KEY in production (Render's generateValue creates a 32+ char key).
 SECRET_KEY = os.environ.get('SECRET_KEY', '')
-if not SECRET_KEY or SECRET_KEY.startswith('django-insecure-') or len(SECRET_KEY) < 50:
+if not SECRET_KEY or SECRET_KEY.startswith('django-insecure-') or len(SECRET_KEY) < 32:
     raise ImproperlyConfigured(
-        'SECRET_KEY must be set in the environment to a strong random string (>= 50 chars) in production.'
+        'SECRET_KEY must be set in the environment to a strong random string (>= 32 chars) in production.'
     )
 
 ALLOWED_HOSTS = _split_csv(
