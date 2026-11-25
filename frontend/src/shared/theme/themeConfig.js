@@ -71,6 +71,13 @@ export const getCustomTheme = () =>
       MuiPopper: { styleOverrides: { root: { zIndex: '1500 !important' } } },
       MuiTooltip: { styleOverrides: { popper: { zIndex: '1600 !important' } } },
       MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
+      MuiDialogContent: {
+        styleOverrides: {
+          root: {
+            backgroundColor: '#ffffff',
+          },
+        },
+      },
       MuiButton: { styleOverrides: { root: { borderRadius: '8px' } } },
       MuiAppBar: {
         styleOverrides: {

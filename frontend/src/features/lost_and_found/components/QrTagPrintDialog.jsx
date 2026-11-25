@@ -39,7 +39,10 @@ export default function QrTagPrintDialog() {
           elevation: 0,
           sx: {
             borderRadius: '28px',
-            bgcolor: isDark ? '#1e1f23' : '#ffffff',
+            bgcolor: '#ffffff',
+            background: 'linear-gradient(180deg, #042a3f 0px, #042a3f 84px, #ffffff 84px, #ffffff 100%)',
+            border: 'none',
+            boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.16)',
             overflow: 'hidden',
           },
         },

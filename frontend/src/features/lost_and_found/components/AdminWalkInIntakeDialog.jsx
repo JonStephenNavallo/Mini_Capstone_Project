@@ -180,9 +180,9 @@ export default function AdminWalkInIntakeDialog() {
           sx: {
             borderRadius: isMobile ? 0 : '28px',
             bgcolor: '#ffffff',
-            backgroundImage: 'none',
-            border: '1px solid rgba(0, 0, 0, 0.06)',
-            boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.12)',
+            background: 'linear-gradient(180deg, #042a3f 0px, #042a3f 96px, #ffffff 96px, #ffffff 100%)',
+            border: 'none',
+            boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.16)',
             overflow: 'hidden',
             maxHeight: isMobile ? '100dvh' : '90vh',
             display: 'flex',

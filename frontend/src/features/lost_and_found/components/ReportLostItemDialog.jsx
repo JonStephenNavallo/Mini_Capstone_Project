@@ -43,7 +43,6 @@ const INITIAL_FORM = () => ({
  */
 export default function ReportLostItemDialog({ open, onClose, onCreated }) {
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const { data: categories = [] } = useCategories();
@@ -127,20 +126,17 @@ export default function ReportLostItemDialog({ open, onClose, onCreated }) {
       slotProps={{
         backdrop: {
           sx: {
-            backdropFilter: 'blur(6px)',
-            backgroundColor: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(15, 23, 42, 0.45)',
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
           },
         },
         paper: {
           elevation: 0,
           sx: {
             borderRadius: isMobile ? 0 : '28px',
-            bgcolor: isDark ? '#1e1f23' : '#ffffff',
-            backgroundImage: 'none',
-            border: isDark ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)',
-            boxShadow: isDark
-              ? '0 24px 48px -12px rgba(0, 0, 0, 0.6)'
-              : '0 24px 48px -12px rgba(0, 0, 0, 0.12)',
+            bgcolor: '#ffffff',
+            background: 'linear-gradient(180deg, #042a3f 0px, #042a3f 96px, #ffffff 96px, #ffffff 100%)',
+            border: 'none',
+            boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.16)',
             overflow: 'hidden',
             maxHeight: isMobile ? '100dvh' : '90vh',
             display: 'flex',

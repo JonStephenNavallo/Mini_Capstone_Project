@@ -337,7 +337,9 @@ function StudentAccountDetailPanel({
             elevation: 0,
             sx: {
               borderRadius: '28px',
-              bgcolor: '#ffffff',
+              bgcolor: '#011f2f',
+              background: 'linear-gradient(180deg, #042a3f 0px, #042a3f 84px, #011f2f 84px, #011f2f 100%)',
+              border: 'none',
               overflow: 'hidden',
               boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.28)',
             },
@@ -874,10 +876,10 @@ export default function AdminUsersPage() {
             elevation: 0,
             sx: {
               borderRadius: isMobile ? 0 : '28px',
-              bgcolor: isDark ? '#1e1f23' : '#ffffff',
-              border: isDark
-                ? '1px solid rgba(255, 255, 255, 0.08)'
-                : '1px solid rgba(0, 0, 0, 0.06)',
+              bgcolor: '#ffffff',
+              background: 'linear-gradient(180deg, #042a3f 0px, #042a3f 92px, #ffffff 92px, #ffffff 100%)',
+              border: 'none',
+              boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.16)',
               overflow: 'hidden',
             },
           },

@@ -78,8 +78,10 @@ export default function ItemDetailDialog() {
           elevation: 0,
           sx: {
             borderRadius: isMobile ? 0 : '28px',
-            bgcolor: isDark ? '#1e1f23' : '#ffffff',
-            border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
+            bgcolor: '#ffffff',
+            background: 'linear-gradient(180deg, #042a3f 0px, #042a3f 96px, #ffffff 96px, #ffffff 100%)',
+            border: 'none',
+            boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.16)',
             maxHeight: isMobile ? '100dvh' : '90vh',
             display: 'flex',
             flexDirection: 'column',
