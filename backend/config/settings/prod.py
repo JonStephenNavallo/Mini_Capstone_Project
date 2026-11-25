@@ -57,7 +57,9 @@ SERVE_MEDIA = _env_bool('SERVE_MEDIA', default=True)
 # Optional persistent media storage via Cloudinary (recommended on Render's ephemeral free disk).
 # Accepts either a single CLOUDINARY_URL (cloudinary://API_KEY:API_SECRET@CLOUD_NAME)
 # or individual CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET env vars.
-_cloudinary_url = os.environ.get('CLOUDINARY_URL', '').strip()
+_cloudinary_url = os.environ.get('CLOUDINARY_URL', '').strip().strip('"').strip("'")
+if _cloudinary_url.startswith('CLOUDINARY_URL='):
+    _cloudinary_url = _cloudinary_url.split('=', 1)[1].strip().strip('"').strip("'")
 _cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', '').strip()
 _cloud_key = os.environ.get('CLOUDINARY_API_KEY', '').strip()
 _cloud_secret = os.environ.get('CLOUDINARY_API_SECRET', '').strip()
