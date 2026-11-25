@@ -35,7 +35,7 @@ def reset_student_password(*, student_id: int) -> tuple[User, str]:
     a password change on their next sign-in. Strictly scoped to STUDENT role.
     """
     student = (
-        User.objects.select_for_update()
+        User.objects.select_for_update(of=('self',))
         .select_related('student_profile')
         .filter(pk=student_id, role=User.RoleType.STUDENT)
         .first()
@@ -54,7 +54,7 @@ def reset_student_password(*, student_id: int) -> tuple[User, str]:
 def set_student_active_status(*, student_id: int, is_active: bool) -> User:
     """Activate or deactivate a STUDENT account. Strictly scoped to STUDENT role."""
     student = (
-        User.objects.select_for_update()
+        User.objects.select_for_update(of=('self',))
         .select_related('student_profile')
         .filter(pk=student_id, role=User.RoleType.STUDENT)
         .first()
@@ -74,7 +74,7 @@ def update_own_account_profile(*, user: User, validated_data: dict) -> User:
     Institutional identity fields (email, role, student_number) are never mutable here.
     """
     locked_user = (
-        User.objects.select_for_update()
+        User.objects.select_for_update(of=('self',))
         .select_related('student_profile', 'staff_profile')
         .get(pk=user.pk)
     )

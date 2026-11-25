@@ -275,7 +275,7 @@ def approve_custody_intake(
     secret_identifiers: str = '',
 ) -> FoundItem:
     """Confirm physical surrender at OSAS desk, award finder points, and run auto-matching."""
-    item = FoundItem.objects.select_for_update().select_related('finder_user').get(pk=found_item_id)
+    item = FoundItem.objects.select_for_update(of=('self',)).select_related('finder_user').get(pk=found_item_id)
     if item.custody_status != FoundItem.CustodyStatus.PENDING_SURRENDER:
         raise ValidationError({'custody_status': 'Only items pending surrender can be approved into custody.'})
 
@@ -401,7 +401,7 @@ def delete_lost_item_report(*, report_id, actor: User) -> None:
 
 @transaction.atomic
 def update_match_feedback(*, match_id, student: User, feedback: str) -> ItemMatchCandidate:
-    candidate = ItemMatchCandidate.objects.select_for_update().select_related('lost_report').get(pk=match_id)
+    candidate = ItemMatchCandidate.objects.select_for_update(of=('self',)).select_related('lost_report').get(pk=match_id)
     if candidate.lost_report.student_id != student.id and student.role != User.RoleType.ADMIN:
         raise PermissionDenied('You can only update feedback on your own lost item matches.')
     if feedback not in ItemMatchCandidate.Feedback.values:
@@ -469,7 +469,7 @@ def process_walkin_claim(*, found_item_id, admin_user: User, validated_data: dic
     if admin_user.role != User.RoleType.ADMIN:
         raise PermissionDenied('Only OSAS Administrators can process physical item claims.')
 
-    item = FoundItem.objects.select_for_update().select_related('finder_user').get(pk=found_item_id)
+    item = FoundItem.objects.select_for_update(of=('self',)).select_related('finder_user').get(pk=found_item_id)
     if item.custody_status != FoundItem.CustodyStatus.IN_CUSTODY:
         raise ValidationError({'detail': f'Item is currently "{item.get_custody_status_display()}" and cannot be claimed.'})
     if ClaimTransaction.objects.filter(found_item=item, is_voided=False).exists():
@@ -650,7 +650,7 @@ def void_mistaken_claim(*, found_item_id, admin_user: User, void_reason: str) ->
         raise ValidationError({'detail': 'Only currently CLAIMED items can have their claim reversed.'})
 
     active_tx = (
-        ClaimTransaction.objects.select_for_update()
+        ClaimTransaction.objects.select_for_update(of=('self',))
         .select_related('claimant_student')
         .filter(found_item=item, is_voided=False)
         .first()
