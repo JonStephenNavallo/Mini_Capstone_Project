@@ -19,6 +19,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import SaveIcon from '@mui/icons-material/Save';
 import M3PillButton from '../../../shared/components/actions/M3PillButton.jsx';
 import M3DateField from '../../../shared/components/inputs/M3DateField.jsx';
+import MultiPhotoUploader from '../../../shared/components/inputs/MultiPhotoUploader.jsx';
 
 const EDITABLE_STATUS_OPTIONS = [
   { value: 'IN_CUSTODY', label: 'In OSAS Custody' },
@@ -56,6 +57,7 @@ export default function EditFoundItemDialog({
     secret_identifiers: item?.secret_identifiers || '',
     custody_status: item?.custody_status || 'IN_CUSTODY',
   });
+  const [secretPhotos, setSecretPhotos] = useState([]);
 
   const isPending = item?.custody_status === 'PENDING_SURRENDER';
 
@@ -75,6 +77,18 @@ export default function EditFoundItemDialog({
     if (!isPending && form.custody_status && form.custody_status !== 'CLAIMED') {
       payload.custody_status = form.custody_status;
     }
+
+    if (secretPhotos[0]) {
+      const fd = new FormData();
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value === undefined) return;
+        fd.append(key, value === null ? '' : String(value));
+      });
+      fd.append('secret_photo', secretPhotos[0]);
+      onSubmit?.(fd);
+      return;
+    }
+
     onSubmit?.(payload);
   };
 
@@ -340,6 +354,41 @@ export default function EditFoundItemDialog({
                 value={form.secret_identifiers}
                 onChange={(e) => setForm((p) => ({ ...p, secret_identifiers: e.target.value }))}
                 sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'background.default', borderRadius: '10px' } }}
+              />
+
+              {item?.secret_photo && secretPhotos.length === 0 && (
+                <Box>
+                  <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
+                    Current Confidential Reference Photo (OSAS Only)
+                  </Typography>
+                  <Box
+                    component="img"
+                    src={item.secret_photo}
+                    alt="Current confidential verification photo"
+                    sx={{
+                      width: '100%',
+                      maxWidth: 240,
+                      aspectRatio: '4 / 3',
+                      objectFit: 'cover',
+                      borderRadius: '14px',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      display: 'block',
+                    }}
+                  />
+                </Box>
+              )}
+
+              <MultiPhotoUploader
+                files={secretPhotos}
+                onChange={setSecretPhotos}
+                maxFiles={1}
+                label={
+                  item?.secret_photo
+                    ? 'Replace Confidential Serial / Mark Photo (Optional)'
+                    : 'Confidential Serial / Mark Photo (OSAS Admin Only — Optional)'
+                }
+                helperText="Private verification photo stored for OSAS staff only. Never displayed publicly."
               />
             </Stack>
           </Box>

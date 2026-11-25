@@ -260,7 +260,11 @@ export function useAdminUpdateFoundItem() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, payload }) => {
-      const { data } = await api.patch(`/lost-found/admin/items/${id}/`, payload);
+      const config =
+        payload instanceof FormData
+          ? { headers: { 'Content-Type': 'multipart/form-data' } }
+          : undefined;
+      const { data } = await api.patch(`/lost-found/admin/items/${id}/`, payload, config);
       return data;
     },
     onSuccess: () => {
