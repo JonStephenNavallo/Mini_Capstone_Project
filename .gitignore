@@ -1,0 +1,66 @@
+# Local environment secrets and certificates (commit only .env.example).
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Python virtual environments, bytecode, and test/lint caches.
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# JavaScript / Vite dependencies, builds, and hosting caches.
+node_modules/
+dist/
+dist-ssr/
+dev-dist/
+.vite/
+.vercel/
+.netlify/
+coverage/
+*.tsbuildinfo
+
+# Local database, logs, uploaded media, and collected static files.
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.log
+logs/
+/backend/media/
+/backend/staticfiles/
+
+# Local AI agent tooling, knowledge graphs, and machine-specific configs.
+/.agents/
+/.codex/
+/.cache/
+/.obsidian/
+/graphify-out/
+/.graphifyignore
+/.mcp.json
+/scratch/
+/backend/scratch/
+*.code-workspace
+
+# Editor and OS generated files.
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+~$*

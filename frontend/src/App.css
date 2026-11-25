@@ -1,0 +1,6 @@
+/* Portal layout utility styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

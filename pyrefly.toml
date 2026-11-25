@@ -1,0 +1,5 @@
+# Pyrefly configuration so the IDE resolves `apps.*`, `config.*`, and backend/venv packages
+project-includes = ["backend"]
+project-excludes = ["**/venv/**", "**/__pycache__/**", "**/migrations/**", "frontend/**"]
+search-path = ["backend"]
+python-interpreter-path = "backend/venv/Scripts/python.exe"

@@ -1,0 +1,16 @@
+# Normalize text in Git without rewriting working files during preparation.
+* text=auto
+*.sh text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Required binary assets must not undergo line-ending conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.pkl binary
