@@ -202,7 +202,7 @@ export function useLeaderboard() {
     queryKey: LNF_KEYS.leaderboard,
     queryFn: async () => {
       const { data } = await api.get('/lost-found/leaderboard/');
-      return data;
+      return Array.isArray(data) ? data : [];
     },
   });
 }

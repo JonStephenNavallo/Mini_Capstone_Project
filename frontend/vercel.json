@@ -2,6 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/api/:path*/",
+      "destination": "https://campus-lost-and-found-api-zxu8.onrender.com/api/:path*/"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://campus-lost-and-found-api-zxu8.onrender.com/api/:path*"
     },
@@ -10,7 +14,7 @@
       "destination": "https://campus-lost-and-found-api-zxu8.onrender.com/media/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/|media/).*)",
       "destination": "/index.html"
     }
   ],
