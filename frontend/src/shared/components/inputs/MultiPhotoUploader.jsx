@@ -70,16 +70,52 @@ export default function MultiPhotoUploader({
   };
 
   const canAddMore = maxFiles === 1 ? files.length === 0 : files.length < maxFiles;
+  const isEmpty = files.length === 0;
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.75 }}>
-        <Typography variant="caption" fontWeight={700} color="text.secondary">
+    <Box
+      sx={{
+        p: { xs: 1.5, sm: 2 },
+        borderRadius: '16px',
+        bgcolor: isDark ? 'rgba(255, 255, 255, 0.04)' : '#f0f4f9',
+        minWidth: 0,
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1.25,
+          mb: 1,
+        }}
+      >
+        <Typography
+          variant="caption"
+          sx={{
+            fontWeight: 800,
+            color: 'text.secondary',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            fontSize: '0.72rem',
+            lineHeight: 1.3,
+          }}
+        >
           {label}
         </Typography>
-        <Typography variant="caption" fontWeight={700} color="text.secondary">
-          {files.length} / {maxFiles}
-        </Typography>
+        <Chip
+          size="small"
+          label={`${files.length} / ${maxFiles}`}
+          sx={{
+            height: 22,
+            fontSize: '0.68rem',
+            fontWeight: 700,
+            borderRadius: '9999px',
+            bgcolor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(13, 75, 110, 0.10)',
+            color: isDark ? '#ffffff' : '#0d4b6e',
+            flexShrink: 0,
+          }}
+        />
       </Box>
 
       <input
@@ -91,137 +127,203 @@ export default function MultiPhotoUploader({
         style={{ display: 'none' }}
       />
 
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns:
-            maxFiles === 1
-              ? { xs: 'minmax(0, 200px)', sm: 'minmax(0, 180px)' }
-              : files.length === 0
-                ? { xs: 'minmax(0, 200px)', sm: 'repeat(4, minmax(0, 1fr))' }
-                : { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(4, minmax(0, 1fr))' },
-          justifyContent:
-            maxFiles === 1 || files.length === 0
-              ? { xs: 'center', sm: 'flex-start' }
-              : 'stretch',
-          gap: 1.25,
-        }}
-      >
-        {previews.map((item, idx) => (
-          <Box
-            key={item.key}
-            sx={{
-              position: 'relative',
-              aspectRatio: '4 / 3',
-              borderRadius: '14px',
-              overflow: 'hidden',
-              bgcolor: isDark ? 'rgba(255,255,255,0.06)' : '#f0f4f9',
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Box
-              component="img"
-              src={item.url}
-              alt={item.file.name}
-              sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            />
-            {maxFiles > 1 && idx === 0 && (
-              <Chip
-                size="small"
-                label="Cover"
-                color="primary"
+      {isEmpty ? (
+        <Box
+          role="button"
+          tabIndex={0}
+          onClick={() => !compressing && inputRef.current?.click()}
+          onKeyDown={(e) => {
+            if (!compressing && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault();
+              inputRef.current?.click();
+            }
+          }}
+          sx={{
+            width: '100%',
+            minHeight: { xs: 104, sm: 108 },
+            px: 2,
+            py: 2,
+            borderRadius: '14px',
+            border: '1.5px dashed',
+            borderColor: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(13,75,110,0.32)',
+            bgcolor: isDark ? 'rgba(255,255,255,0.03)' : '#ffffff',
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: 'center',
+            justifyContent: 'center',
+            textAlign: { xs: 'center', sm: 'left' },
+            gap: { xs: 1, sm: 1.5 },
+            cursor: compressing ? 'wait' : 'pointer',
+            transition: 'background-color 0.15s ease, border-color 0.15s ease',
+            '&:hover': {
+              bgcolor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(13,75,110,0.04)',
+              borderColor: 'primary.main',
+            },
+          }}
+        >
+          {compressing ? (
+            <CircularProgress size={24} />
+          ) : (
+            <>
+              <Box
                 sx={{
-                  position: 'absolute',
-                  top: 6,
-                  left: 6,
-                  height: 20,
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
+                  width: 42,
+                  height: 42,
+                  borderRadius: '12px',
+                  bgcolor: 'rgba(13, 75, 110, 0.10)',
+                  color: '#0d4b6e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
                 }}
-              />
-            )}
-            <Chip
-              size="small"
-              label={formatFileSize(item.file.size)}
-              sx={{
-                position: 'absolute',
-                bottom: 6,
-                left: 6,
-                height: 20,
-                fontSize: '0.64rem',
-                fontWeight: 700,
-                bgcolor: 'rgba(0, 0, 0, 0.65)',
-                color: '#ffffff',
-              }}
-            />
-            <IconButton
-              size="small"
-              aria-label={`Remove ${item.file.name}`}
-              onClick={() => handleRemove(idx)}
-              sx={{
-                position: 'absolute',
-                top: 6,
-                right: 6,
-                p: 0.35,
-                bgcolor: 'rgba(0, 0, 0, 0.65)',
-                color: '#ffffff',
-                '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.85)' },
-              }}
-            >
-              <CloseIcon sx={{ fontSize: 15 }} />
-            </IconButton>
-          </Box>
-        ))}
-
-        {canAddMore && (
+              >
+                <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 22 }} />
+              </Box>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="body2" fontWeight={700} color="primary.main" sx={{ lineHeight: 1.25 }}>
+                  {maxFiles > 1 ? 'Tap or click to add photos' : 'Tap or click to add a photo'}
+                </Typography>
+                {helperText && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, lineHeight: 1.4 }}>
+                    {helperText}
+                  </Typography>
+                )}
+              </Box>
+            </>
+          )}
+        </Box>
+      ) : (
+        <>
           <Box
-            role="button"
-            tabIndex={0}
-            onClick={() => !compressing && inputRef.current?.click()}
-            onKeyDown={(e) => {
-              if (!compressing && (e.key === 'Enter' || e.key === ' ')) {
-                e.preventDefault();
-                inputRef.current?.click();
-              }
-            }}
             sx={{
-              aspectRatio: '4 / 3',
-              borderRadius: '14px',
-              border: '1.5px dashed',
-              borderColor: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(13,75,110,0.32)',
-              bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(13,75,110,0.04)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 0.5,
-              cursor: compressing ? 'wait' : 'pointer',
-              color: 'primary.main',
-              transition: 'background-color 0.15s ease',
-              '&:hover': {
-                bgcolor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(13,75,110,0.08)',
-              },
+              display: 'grid',
+              gridTemplateColumns:
+                maxFiles === 1
+                  ? { xs: '1fr', sm: 'minmax(0, 240px)' }
+                  : { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(4, minmax(0, 1fr))' },
+              gap: 1.25,
             }}
           >
-            {compressing ? (
-              <CircularProgress size={22} />
-            ) : (
-              <>
-                <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 24 }} />
-                <Typography variant="caption" fontWeight={700}>
-                  {files.length === 0 ? 'Add Photo' : 'Add More'}
-                </Typography>
-              </>
+            {previews.map((item, idx) => (
+              <Box
+                key={item.key}
+                sx={{
+                  position: 'relative',
+                  aspectRatio: '4 / 3',
+                  borderRadius: '14px',
+                  overflow: 'hidden',
+                  bgcolor: isDark ? 'rgba(255,255,255,0.06)' : '#ffffff',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  minWidth: 0,
+                }}
+              >
+                <Box
+                  component="img"
+                  src={item.url}
+                  alt={item.file.name}
+                  sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+                {maxFiles > 1 && idx === 0 && (
+                  <Chip
+                    size="small"
+                    label="Cover"
+                    color="primary"
+                    sx={{
+                      position: 'absolute',
+                      top: 6,
+                      left: 6,
+                      height: 20,
+                      fontSize: '0.65rem',
+                      fontWeight: 700,
+                    }}
+                  />
+                )}
+                <Chip
+                  size="small"
+                  label={formatFileSize(item.file.size)}
+                  sx={{
+                    position: 'absolute',
+                    bottom: 6,
+                    left: 6,
+                    height: 20,
+                    fontSize: '0.64rem',
+                    fontWeight: 700,
+                    bgcolor: 'rgba(0, 0, 0, 0.65)',
+                    color: '#ffffff',
+                  }}
+                />
+                <IconButton
+                  size="small"
+                  aria-label={`Remove ${item.file.name}`}
+                  onClick={() => handleRemove(idx)}
+                  sx={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 6,
+                    p: 0.35,
+                    bgcolor: 'rgba(0, 0, 0, 0.65)',
+                    color: '#ffffff',
+                    '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.85)' },
+                  }}
+                >
+                  <CloseIcon sx={{ fontSize: 15 }} />
+                </IconButton>
+              </Box>
+            ))}
+
+            {canAddMore && (
+              <Box
+                role="button"
+                tabIndex={0}
+                onClick={() => !compressing && inputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (!compressing && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    inputRef.current?.click();
+                  }
+                }}
+                sx={{
+                  aspectRatio: '4 / 3',
+                  borderRadius: '14px',
+                  border: '1.5px dashed',
+                  borderColor: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(13,75,110,0.32)',
+                  bgcolor: isDark ? 'rgba(255,255,255,0.03)' : '#ffffff',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 0.5,
+                  cursor: compressing ? 'wait' : 'pointer',
+                  color: 'primary.main',
+                  transition: 'background-color 0.15s ease, border-color 0.15s ease',
+                  '&:hover': {
+                    bgcolor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(13,75,110,0.04)',
+                    borderColor: 'primary.main',
+                  },
+                }}
+              >
+                {compressing ? (
+                  <CircularProgress size={22} />
+                ) : (
+                  <>
+                    <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 22 }} />
+                    <Typography variant="caption" fontWeight={700}>
+                      Add More
+                    </Typography>
+                  </>
+                )}
+              </Box>
             )}
           </Box>
-        )}
-      </Box>
 
-      {helperText && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-          {helperText}
-        </Typography>
+          {helperText && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.9 }}>
+              {helperText}
+            </Typography>
+          )}
+        </>
       )}
     </Box>
   );
