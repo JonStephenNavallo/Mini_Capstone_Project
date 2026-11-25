@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://YOUR-RENDER-APP.onrender.com/api/:path*"
+      "destination": "https://campus-lost-and-found-api-zxu8.onrender.com/api/:path*"
     },
     {
       "source": "/media/:path*",
-      "destination": "https://YOUR-RENDER-APP.onrender.com/media/:path*"
+      "destination": "https://campus-lost-and-found-api-zxu8.onrender.com/media/:path*"
     },
     {
       "source": "/(.*)",
