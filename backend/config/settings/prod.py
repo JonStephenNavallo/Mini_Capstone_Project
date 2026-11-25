@@ -1,5 +1,6 @@
 """Production settings for Campus Property Lost & Found Portal (Render + Vercel)."""
 import os
+from urllib.parse import urlparse
 from django.core.exceptions import ImproperlyConfigured
 from .base import *  # noqa: F403, F401
 
@@ -52,6 +53,36 @@ STORAGES = {
 
 # Allow serving uploaded media from Django on Render when external storage (e.g. Cloudinary) is not yet configured.
 SERVE_MEDIA = _env_bool('SERVE_MEDIA', default=True)
+
+# Optional persistent media storage via Cloudinary (recommended on Render's ephemeral free disk).
+# Accepts either a single CLOUDINARY_URL (cloudinary://API_KEY:API_SECRET@CLOUD_NAME)
+# or individual CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET env vars.
+_cloudinary_url = os.environ.get('CLOUDINARY_URL', '').strip()
+_cloud_name = os.environ.get('CLOUDINARY_CLOUD_NAME', '').strip()
+_cloud_key = os.environ.get('CLOUDINARY_API_KEY', '').strip()
+_cloud_secret = os.environ.get('CLOUDINARY_API_SECRET', '').strip()
+if _cloudinary_url:
+    _parsed = urlparse(_cloudinary_url)
+    _cloud_name = _parsed.hostname or _cloud_name
+    _cloud_key = _parsed.username or _cloud_key
+    _cloud_secret = _parsed.password or _cloud_secret
+
+if _cloud_name and _cloud_key and _cloud_secret:
+    INSTALLED_APPS = [  # noqa: F405
+        *INSTALLED_APPS,  # noqa: F405
+        'cloudinary_storage',
+        'cloudinary',
+    ]
+    CLOUDINARY_STORAGE = {
+        'CLOUD_NAME': _cloud_name,
+        'API_KEY': _cloud_key,
+        'API_SECRET': _cloud_secret,
+        'SECURE': True,
+    }
+    STORAGES['default'] = {
+        'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage',
+    }
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # Trust HTTPS termination performed by Render / Vercel reverse proxies.
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
