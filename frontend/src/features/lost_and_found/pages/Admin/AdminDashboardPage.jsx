@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import {
   Box,
   Chip,
-  CircularProgress,
   Stack,
   Typography,
 } from '@mui/material';
@@ -26,6 +25,7 @@ import {
 } from '../../../../shared/components/dashboard/KpiMetricCard.jsx';
 import { OVERVIEW_GAP } from '../../../../shared/components/dashboard/dashboardTokens.js';
 import { useAdminAnalytics, useAdminFoundItems } from '../../api/lostFoundApi.js';
+import { AdminDashboardSkeleton } from '../../components/LostFoundSkeletons.jsx';
 import { useLostFoundUiStore } from '../../state/lostFoundUiStore.js';
 
 const CHART_PALETTE = ['#0d4b6e', '#2e7d32', '#f57f3b', '#7b1fa2', '#00838f', '#c62828'];
@@ -69,11 +69,7 @@ export default function AdminDashboardPage() {
   );
 
   if (isLoading) {
-    return (
-      <Box sx={{ py: 8, display: 'grid', placeItems: 'center' }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <AdminDashboardSkeleton />;
   }
 
   const kpis = analytics?.kpis || {};

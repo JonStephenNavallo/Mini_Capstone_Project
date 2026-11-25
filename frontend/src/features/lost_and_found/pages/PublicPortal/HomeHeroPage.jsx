@@ -27,6 +27,10 @@ import { useLeaderboard, usePortalConfig, usePublicFoundItems } from '../../api/
 import { useLostFoundUiStore } from '../../state/lostFoundUiStore.js';
 import FoundItemCard from '../../components/FoundItemCard.jsx';
 import ItemDetailDialog from '../../components/ItemDetailDialog.jsx';
+import {
+  FoundItemCardSkeleton,
+  HonestyLeaderRowSkeleton,
+} from '../../components/LostFoundSkeletons.jsx';
 import QrTagPrintDialog from '../../components/QrTagPrintDialog.jsx';
 
 export default function HomeHeroPage() {
@@ -35,9 +39,9 @@ export default function HomeHeroPage() {
 
   const openItemDetail = useLostFoundUiStore((s) => s.openItemDetail);
 
-  const { data: custodyData } = usePublicFoundItems({ status: 'IN_CUSTODY', page_size: 7 });
-  const { data: claimedData } = usePublicFoundItems({ status: 'CLAIMED', page_size: 2 });
-  const { data: leaderboard = [] } = useLeaderboard();
+  const { data: custodyData, isLoading: custodyLoading } = usePublicFoundItems({ status: 'IN_CUSTODY', page_size: 7 });
+  const { data: claimedData, isLoading: claimedLoading } = usePublicFoundItems({ status: 'CLAIMED', page_size: 2 });
+  const { data: leaderboard = [], isLoading: leaderboardLoading } = useLeaderboard();
   const { data: config } = usePortalConfig();
 
   // Prioritize today's turn-ins for the Home carousel; gracefully fall back to latest turn-ins
@@ -238,14 +242,16 @@ export default function HomeHeroPage() {
           </M3PillButton>
         }
       >
-        {spotlightItems.map((item) => (
-          <FoundItemCard
-            key={item.id}
-            item={item}
-            maskSensitivePhoto
-            onSelect={(it) => openItemDetail(it.id)}
-          />
-        ))}
+        {custodyLoading
+          ? [0, 1, 2, 3].map((idx) => <FoundItemCardSkeleton key={`custody-sk-${idx}`} />)
+          : spotlightItems.map((item) => (
+              <FoundItemCard
+                key={item.id}
+                item={item}
+                maskSensitivePhoto
+                onSelect={(it) => openItemDetail(it.id)}
+              />
+            ))}
       </M3HorizontalCarousel>
 
       {/* Recently Claimed Showcase + Honesty Leaders */}
@@ -285,9 +291,11 @@ export default function HomeHeroPage() {
               gap: 2,
             }}
           >
-            {(claimedData?.results || []).slice(0, 2).map((item) => (
-              <FoundItemCard key={item.id} item={item} onSelect={(it) => openItemDetail(it.id)} />
-            ))}
+            {claimedLoading
+              ? [0, 1].map((idx) => <FoundItemCardSkeleton key={`claimed-sk-${idx}`} />)
+              : (claimedData?.results || []).slice(0, 2).map((item) => (
+                  <FoundItemCard key={item.id} item={item} onSelect={(it) => openItemDetail(it.id)} />
+                ))}
           </Box>
         </SectionSurface>
 
@@ -305,7 +313,9 @@ export default function HomeHeroPage() {
           </Box>
 
           <Stack spacing={1.25}>
-            {leaderboard.slice(0, 4).map((entry, index) => (
+            {leaderboardLoading
+              ? [0, 1, 2, 3].map((idx) => <HonestyLeaderRowSkeleton key={`leader-sk-${idx}`} />)
+              : leaderboard.slice(0, 4).map((entry, index) => (
               <Box
                 key={entry.department}
                 sx={{
