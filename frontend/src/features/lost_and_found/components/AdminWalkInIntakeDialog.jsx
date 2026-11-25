@@ -20,6 +20,7 @@ import QrCode2Icon from '@mui/icons-material/QrCode2';
 import { QRCodeSVG } from 'qrcode.react';
 import M3PillButton from '../../../shared/components/actions/M3PillButton.jsx';
 import M3DateField from '../../../shared/components/inputs/M3DateField.jsx';
+import MultiPhotoUploader from '../../../shared/components/inputs/MultiPhotoUploader.jsx';
 import M3StepWizard from '../../../shared/components/navigation/M3StepWizard.jsx';
 import api from '../../../services/api.js';
 import {
@@ -70,8 +71,8 @@ export default function AdminWalkInIntakeDialog() {
 
   const [activeStep, setActiveStep] = useState(0);
   const [form, setForm] = useState(INITIAL_FORM);
-  const [primaryPhoto, setPrimaryPhoto] = useState(null);
-  const [secretPhoto, setSecretPhoto] = useState(null);
+  const [publicPhotos, setPublicPhotos] = useState([]);
+  const [secretPhotos, setSecretPhotos] = useState([]);
   const [studentQuery, setStudentQuery] = useState('');
   const [studentMatches, setStudentMatches] = useState([]);
   const [createdItem, setCreatedItem] = useState(null);
@@ -103,8 +104,8 @@ export default function AdminWalkInIntakeDialog() {
 
   const resetFormState = () => {
     setForm(INITIAL_FORM());
-    setPrimaryPhoto(null);
-    setSecretPhoto(null);
+    setPublicPhotos([]);
+    setSecretPhotos([]);
     setStudentQuery('');
     setStudentMatches([]);
     setCreatedItem(null);
@@ -149,8 +150,9 @@ export default function AdminWalkInIntakeDialog() {
       if (form.finder_user) fd.append('finder_user', form.finder_user);
       fd.append('finder_name', form.finder_name);
       fd.append('finder_contact', form.finder_contact);
-      if (primaryPhoto) fd.append('primary_photo', primaryPhoto);
-      if (secretPhoto) fd.append('secret_photo', secretPhoto);
+      if (publicPhotos[0]) fd.append('primary_photo', publicPhotos[0]);
+      publicPhotos.slice(1).forEach((file) => fd.append('photos', file));
+      if (secretPhotos[0]) fd.append('secret_photo', secretPhotos[0]);
 
       const res = await createItem.mutateAsync(fd);
       setCreatedItem(res);
@@ -525,27 +527,21 @@ export default function AdminWalkInIntakeDialog() {
                   </Stack>
                 </Box>
 
-                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                      Public Photo Evidence
-                    </Typography>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setPrimaryPhoto(e.target.files?.[0] || null)}
-                    />
-                  </Box>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                      Confidential Serial/Mark Photo (Admin Only)
-                    </Typography>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setSecretPhoto(e.target.files?.[0] || null)}
-                    />
-                  </Box>
+                <Stack spacing={2}>
+                  <MultiPhotoUploader
+                    files={publicPhotos}
+                    onChange={setPublicPhotos}
+                    maxFiles={4}
+                    label="Public Photo Evidence (Optional)"
+                    helperText="Upload up to 4 clear photos shown in the public catalog. First photo is the primary thumbnail."
+                  />
+                  <MultiPhotoUploader
+                    files={secretPhotos}
+                    onChange={setSecretPhotos}
+                    maxFiles={1}
+                    label="Confidential Serial / Mark Photo (OSAS Admin Only — Optional)"
+                    helperText="Private verification photo stored for OSAS staff only. Never displayed publicly."
+                  />
                 </Stack>
               </Stack>
             )}
