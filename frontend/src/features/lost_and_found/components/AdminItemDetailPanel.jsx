@@ -191,19 +191,13 @@ export default function AdminItemDetailPanel({
                 </Typography>
               )}
               {item.secret_photo && (
-                <Box
-                  component="img"
-                  src={item.secret_photo}
-                  alt="Confidential verification photo"
-                  sx={{
-                    mt: item.secret_identifiers ? 1.25 : 0.5,
-                    width: '100%',
-                    maxHeight: 160,
-                    objectFit: 'cover',
-                    borderRadius: '12px',
-                    display: 'block',
-                  }}
-                />
+                <Box sx={{ mt: item.secret_identifiers ? 1.25 : 0.5 }}>
+                  <ItemPhotoGallery
+                    primaryPhoto={item.secret_photo}
+                    alt="Confidential verification photo"
+                    maxHeight={160}
+                  />
+                </Box>
               )}
             </Box>
           )}

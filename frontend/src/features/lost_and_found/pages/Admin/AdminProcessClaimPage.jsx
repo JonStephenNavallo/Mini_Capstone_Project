@@ -23,6 +23,7 @@ import M3StepWizard from '../../../../shared/components/navigation/M3StepWizard.
 import { SectionSurface } from '../../../../shared/components/dashboard/KpiMetricCard.jsx';
 import api from '../../../../services/api.js';
 import { useProcessWalkInClaim, useQrLookup } from '../../api/lostFoundApi.js';
+import ItemPhotoGallery from '../../components/ItemPhotoGallery.jsx';
 import { useLostFoundUiStore } from '../../state/lostFoundUiStore.js';
 
 const CLAIM_WIZARD_STEPS = [
@@ -398,14 +399,13 @@ export default function AdminProcessClaimPage() {
 
                 {item.secret_photo && (
                   <Box>
-                    <Typography variant="caption" fontWeight={700} color="text.secondary">
+                    <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
                       Confidential Reference Photo (OSAS Staff Only):
                     </Typography>
-                    <Box
-                      component="img"
-                      src={item.secret_photo}
-                      alt="Confidential marker"
-                      sx={{ width: '100%', maxHeight: 170, objectFit: 'cover', borderRadius: '12px', mt: 0.5 }}
+                    <ItemPhotoGallery
+                      primaryPhoto={item.secret_photo}
+                      alt="Confidential verification photo"
+                      maxHeight={180}
                     />
                   </Box>
                 )}
