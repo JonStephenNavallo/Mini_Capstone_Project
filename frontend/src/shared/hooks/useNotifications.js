@@ -58,25 +58,33 @@ function keysMatch(bufferA, arrayB) {
  * notifications still arrive when the mobile PWA is swiped away from Recent Apps.
  * Fails silently if VAPID keys are not configured or PushManager is unsupported.
  */
-export async function syncWebPushSubscription(userId) {
-  if (!userId || typeof window === 'undefined') return false;
-  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-    return false;
+export async function syncWebPushSubscription(userId, { force = false } = {}) {
+  if (!userId || typeof window === 'undefined') {
+    return { ok: false, status: 'idle' };
   }
-  if (Notification.permission !== 'granted') return false;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    return { ok: false, status: 'unsupported' };
+  }
+  if (Notification.permission !== 'granted') {
+    return { ok: false, status: 'permission-required' };
+  }
 
-  if (streamManager.pushSyncPromise) {
+  if (streamManager.pushSyncPromise && !force) {
     return streamManager.pushSyncPromise;
   }
 
   streamManager.pushSyncPromise = (async () => {
     try {
       const { data: vapid } = await api.get('/notifications/push/vapid-public-key/');
-      if (!vapid?.enabled || !vapid?.public_key) return false;
+      if (!vapid?.enabled || !vapid?.public_key) {
+        return { ok: false, status: 'unconfigured' };
+      }
 
       const applicationServerKey = urlBase64ToUint8Array(vapid.public_key);
       const registration = await navigator.serviceWorker.ready;
-      if (!registration?.pushManager) return false;
+      if (!registration?.pushManager) {
+        return { ok: false, status: 'unsupported' };
+      }
 
       let subscription = await registration.pushManager.getSubscription();
       if (subscription && subscription.options?.applicationServerKey) {
@@ -95,14 +103,16 @@ export async function syncWebPushSubscription(userId) {
 
       const serialized = subscription.toJSON();
       if (!serialized?.endpoint || !serialized?.keys?.p256dh || !serialized?.keys?.auth) {
-        return false;
+        return { ok: false, status: 'error' };
       }
 
       const cacheKey = `${userId}:${serialized.endpoint}`;
-      if (streamManager.syncedPushKey === cacheKey) {
-        return true;
+      if (!force && streamManager.syncedPushKey === cacheKey && Number(vapid.subscription_count) > 0) {
+        return { ok: true, status: 'subscribed' };
       }
 
+      // Ensure CSRF cookie is fresh before POSTing on mobile PWAs resuming from sleep
+      await api.get('/auth/csrf/', { sessionControl: true });
       await api.post('/notifications/push/subscribe/', {
         endpoint: serialized.endpoint,
         keys: {
@@ -113,10 +123,10 @@ export async function syncWebPushSubscription(userId) {
       });
 
       streamManager.syncedPushKey = cacheKey;
-      return true;
+      return { ok: true, status: 'subscribed' };
     } catch {
       // Keep existing SSE notifications working even if Web Push registration fails
-      return false;
+      return { ok: false, status: 'error' };
     } finally {
       streamManager.pushSyncPromise = null;
     }
@@ -383,6 +393,8 @@ export function useNotifications(currentUser) {
   const isAuthenticated = Boolean(userId);
   const queryKey = useMemo(() => getNotificationsQueryKey(userId), [userId]);
   const [notificationPermission, setNotificationPermission] = useState(getBrowserNotificationPermission);
+  const [pushStatus, setPushStatus] = useState('idle');
+  const [pushTestFeedback, setPushTestFeedback] = useState('');
 
   const requestDeviceNotificationPermission = useCallback(async () => {
     if (typeof window === 'undefined' || !('Notification' in window)) {
@@ -393,13 +405,40 @@ export function useNotifications(currentUser) {
       const result = await Notification.requestPermission();
       setNotificationPermission(result);
       if (result === 'granted' && userId) {
-        await syncWebPushSubscription(userId);
+        setPushStatus('syncing');
+        const res = await syncWebPushSubscription(userId, { force: true });
+        setPushStatus(res.status);
       }
       return result;
     } catch {
       const fallback = getBrowserNotificationPermission();
       setNotificationPermission(fallback);
       return fallback;
+    }
+  }, [userId]);
+
+  const sendTestBackgroundPush = useCallback(async () => {
+    if (!userId) return;
+    setPushTestFeedback('Syncing push subscription...');
+    const syncRes = await syncWebPushSubscription(userId, { force: true });
+    setPushStatus(syncRes.status);
+    if (!syncRes.ok) {
+      if (syncRes.status === 'unconfigured') {
+        setPushTestFeedback('Server VAPID keys are not set in Render Environment yet.');
+      } else if (syncRes.status === 'unsupported') {
+        setPushTestFeedback('Web Push is not supported in this browser mode.');
+      } else {
+        setPushTestFeedback('Could not register push subscription. Re-open installed Chrome PWA and retry.');
+      }
+      return;
+    }
+    try {
+      await api.get('/auth/csrf/', { sessionControl: true });
+      await api.post('/notifications/push/test/', { delay_seconds: 5 });
+      setPushTestFeedback('Scheduled! Swipe the app away now — alert arrives in 5 seconds.');
+    } catch (err) {
+      const detail = err?.response?.data?.detail || 'Failed to schedule test background push.';
+      setPushTestFeedback(detail);
     }
   }, [userId]);
 
@@ -412,12 +451,26 @@ export function useNotifications(currentUser) {
     streamManager.subscriberCount += 1;
     startRealtimeSync(queryClient, userId);
 
-    // Automatically register/refresh VAPID Web Push if permission was already granted
-    if (getBrowserNotificationPermission() === 'granted') {
-      syncWebPushSubscription(userId);
+    const runPushSync = (force = false) => {
+      if (getBrowserNotificationPermission() === 'granted') {
+        syncWebPushSubscription(userId, { force }).then((res) => {
+          setPushStatus(res.status);
+        });
+      }
+    };
+
+    runPushSync(false);
+
+    // Re-sync automatically when a newly deployed Service Worker claims this PWA client
+    const handleControllerChange = () => runPushSync(true);
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
     }
 
     return () => {
+      if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      }
       streamManager.subscriberCount = Math.max(0, streamManager.subscriberCount - 1);
       if (streamManager.subscriberCount === 0) {
         stopRealtimeSync(false);
@@ -576,6 +629,9 @@ export function useNotifications(currentUser) {
     isClearingAll: clearAllMutation.isPending,
     notificationPermission,
     requestDeviceNotificationPermission,
+    pushStatus,
+    pushTestFeedback,
+    sendTestBackgroundPush,
   };
 }
 

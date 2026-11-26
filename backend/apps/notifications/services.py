@@ -52,57 +52,27 @@ def _publish_notification_created(notification: Notification) -> None:
         pass
 
 
-def send_web_push_for_notification(notification_id) -> int:
-    """
-    Deliver an encrypted VAPID Web Push payload to all registered devices of the
-    notification recipient so closed/background mobile PWAs wake up via FCM/APNs.
-    Silently no-ops when VAPID keys are not configured and prunes expired (404/410) endpoints.
-    """
-    public_key = (getattr(settings, 'VAPID_PUBLIC_KEY', '') or '').strip()
-    private_key = (getattr(settings, 'VAPID_PRIVATE_KEY', '') or '').strip()
-    if not public_key or not private_key:
-        return 0
+def _clean_vapid_value(raw: str, prefix: str = '') -> str:
+    val = (raw or '').strip().strip('"').strip("'")
+    if prefix and val.startswith(f'{prefix}='):
+        val = val.split('=', 1)[1].strip().strip('"').strip("'")
+    return val
 
+
+def get_vapid_keys() -> tuple[str, str, str]:
+    public_key = _clean_vapid_value(getattr(settings, 'VAPID_PUBLIC_KEY', ''), 'VAPID_PUBLIC_KEY')
+    private_key = _clean_vapid_value(getattr(settings, 'VAPID_PRIVATE_KEY', ''), 'VAPID_PRIVATE_KEY')
+    claims_sub = _clean_vapid_value(getattr(settings, 'VAPID_CLAIMS_EMAIL', ''), 'VAPID_CLAIMS_EMAIL') or 'mailto:osas@campus.edu'
+    if not claims_sub.startswith('mailto:') and not claims_sub.startswith('https://'):
+        claims_sub = f'mailto:{claims_sub}'
+    return public_key, private_key, claims_sub
+
+
+def _deliver_webpush_payload(*, subscriptions: list, payload_str: str, private_key: str, claims_sub: str) -> int:
     try:
         from pywebpush import WebPushException, webpush
     except ImportError:
         return 0
-
-    notification = (
-        Notification.objects.select_related('recipient')
-        .filter(pk=notification_id)
-        .first()
-    )
-    if notification is None or not getattr(notification.recipient, 'is_active', False):
-        return 0
-
-    subscriptions = list(
-        PushSubscription.objects.filter(user_id=notification.recipient_id)
-    )
-    if not subscriptions:
-        return 0
-
-    unread_count = Notification.objects.filter(
-        recipient_id=notification.recipient_id,
-        is_read=False,
-    ).count()
-    role = getattr(notification.recipient, 'role', '')
-    payload_str = json.dumps(
-        {
-            'id': str(notification.id),
-            'title': notification.title,
-            'body': notification.message,
-            'category': notification.category,
-            'link_path': _resolve_push_link_path(notification, role),
-            'tag': f'osas-lnf-notif-{notification.id}',
-            'unread_count': unread_count,
-        },
-        separators=(',', ':'),
-    )
-
-    claims_sub = (getattr(settings, 'VAPID_CLAIMS_EMAIL', '') or 'mailto:osas@campus.edu').strip()
-    if not claims_sub.startswith('mailto:') and not claims_sub.startswith('https://'):
-        claims_sub = f'mailto:{claims_sub}'
 
     delivered = 0
     stale_ids = []
@@ -138,10 +108,107 @@ def send_web_push_for_notification(notification_id) -> int:
     return delivered
 
 
+def send_web_push_for_notification(notification_id) -> int:
+    """
+    Deliver an encrypted VAPID Web Push payload to all registered devices of the
+    notification recipient so closed/background mobile PWAs wake up via FCM/APNs.
+    Silently no-ops when VAPID keys are not configured and prunes expired (404/410) endpoints.
+    """
+    public_key, private_key, claims_sub = get_vapid_keys()
+    if not public_key or not private_key:
+        return 0
+
+    notification = (
+        Notification.objects.select_related('recipient')
+        .filter(pk=notification_id)
+        .first()
+    )
+    if notification is None or not getattr(notification.recipient, 'is_active', False):
+        return 0
+
+    subscriptions = list(
+        PushSubscription.objects.filter(user_id=notification.recipient_id)
+    )
+    if not subscriptions:
+        return 0
+
+    unread_count = Notification.objects.filter(
+        recipient_id=notification.recipient_id,
+        is_read=False,
+    ).count()
+    role = getattr(notification.recipient, 'role', '')
+    payload_str = json.dumps(
+        {
+            'id': str(notification.id),
+            'title': notification.title,
+            'body': notification.message,
+            'category': notification.category,
+            'link_path': _resolve_push_link_path(notification, role),
+            'tag': f'osas-lnf-notif-{notification.id}',
+            'unread_count': unread_count,
+        },
+        separators=(',', ':'),
+    )
+
+    return _deliver_webpush_payload(
+        subscriptions=subscriptions,
+        payload_str=payload_str,
+        private_key=private_key,
+        claims_sub=claims_sub,
+    )
+
+
+def schedule_test_web_push(*, user, delay_seconds: float = 5.0) -> dict:
+    """
+    Adapted from DannyMoerkerke/web-push-demo: schedules a delayed Web Push (default 5s)
+    so the user can swipe the PWA out of Recent Apps and verify cold-start delivery.
+    """
+    public_key, private_key, claims_sub = get_vapid_keys()
+    if not public_key or not private_key:
+        return {'ok': False, 'reason': 'VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are not set on the backend.'}
+
+    subs = list(PushSubscription.objects.filter(user=user))
+    sub_count = len(subs)
+    if sub_count == 0:
+        return {'ok': False, 'reason': 'No active Web Push subscription registered for this device yet.'}
+
+    delay = max(0.0, min(float(delay_seconds), 15.0))
+    role = getattr(user, 'role', '')
+    link_path = '/admin/dashboard' if role == 'ADMIN' else '/'
+
+    def _send_delayed():
+        from django.db import close_old_connections
+
+        close_old_connections()
+        try:
+            payload_str = json.dumps(
+                {
+                    'id': f'test-{uuid.uuid4()}',
+                    'title': 'Lost & Found Background Alert',
+                    'body': 'Background Web Push is active even when the app is closed!',
+                    'category': 'SYSTEM',
+                    'link_path': link_path,
+                },
+                separators=(',', ':'),
+            )
+            _deliver_webpush_payload(
+                subscriptions=subs,
+                payload_str=payload_str,
+                private_key=private_key,
+                claims_sub=claims_sub,
+            )
+        finally:
+            close_old_connections()
+
+    timer = threading.Timer(delay, _send_delayed)
+    timer.daemon = True
+    timer.start()
+    return {'ok': True, 'delay_seconds': delay, 'subscriptions': sub_count}
+
+
 def _schedule_web_push(notification_id) -> None:
     """Dispatch Web Push asynchronously after DB commit so HTTP requests never block on FCM."""
-    public_key = (getattr(settings, 'VAPID_PUBLIC_KEY', '') or '').strip()
-    private_key = (getattr(settings, 'VAPID_PRIVATE_KEY', '') or '').strip()
+    public_key, private_key, _ = get_vapid_keys()
     if not public_key or not private_key:
         return
 

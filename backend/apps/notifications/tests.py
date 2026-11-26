@@ -150,3 +150,13 @@ class NotificationOwnershipAndDeletionTests(TestCase):
             delivered = send_web_push_for_notification(notif.id)
             self.assertEqual(delivered, 0)
             self.assertEqual(PushSubscription.objects.count(), 0)
+
+        # Delayed test push returns 400 when user has 0 active subscriptions, 202 when subscribed
+        no_sub_test = self.client.post('/api/notifications/push/test/', {'delay_seconds': 0}, format='json')
+        self.assertEqual(no_sub_test.status_code, 400)
+
+        self.client.post('/api/notifications/push/subscribe/', payload, format='json')
+        with patch('pywebpush.webpush'):
+            ok_test = self.client.post('/api/notifications/push/test/', {'delay_seconds': 0}, format='json')
+            self.assertEqual(ok_test.status_code, 202)
+            self.assertTrue(ok_test.data['ok'])

@@ -106,6 +106,9 @@ const NotificationsDrawer = ({ open, onClose }) => {
     isClearingAll,
     notificationPermission,
     requestDeviceNotificationPermission,
+    pushStatus,
+    pushTestFeedback,
+    sendTestBackgroundPush,
   } = useNotifications(user);
 
   const displayed = useMemo(
@@ -305,6 +308,70 @@ const NotificationsDrawer = ({ open, onClose }) => {
             >
               Enable
             </M3PillButton>
+          </Box>
+        )}
+
+        {/* Background Web Push verification card (modeled on pwa-today / web-push-demo 5s delayed test) */}
+        {user && notificationPermission === 'granted' && (
+          <Box
+            sx={{
+              mb: 2,
+              p: 1.5,
+              borderRadius: '16px',
+              bgcolor: pushStatus === 'subscribed' ? '#edf8f1' : '#edf4ff',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1,
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.25 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+                <Box
+                  sx={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: '10px',
+                    bgcolor:
+                      pushStatus === 'subscribed'
+                        ? 'rgba(46, 125, 50, 0.12)'
+                        : 'rgba(13, 75, 110, 0.12)',
+                    color: pushStatus === 'subscribed' ? '#2e7d32' : 'primary.main',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <NotificationsActiveOutlinedIcon fontSize="small" />
+                </Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" fontWeight={800} sx={{ display: 'block', lineHeight: 1.25 }}>
+                    {pushStatus === 'subscribed'
+                      ? 'Background Alerts Active'
+                      : 'Syncing Background Alerts'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.72rem' }}>
+                    Works even when swiped out of Recent Apps.
+                  </Typography>
+                </Box>
+              </Box>
+              <M3PillButton
+                size="small"
+                variant="tonal"
+                onClick={sendTestBackgroundPush}
+                sx={{ flexShrink: 0 }}
+              >
+                Test (5s)
+              </M3PillButton>
+            </Box>
+            {pushTestFeedback && (
+              <Typography
+                variant="caption"
+                sx={{ fontSize: '0.72rem', fontWeight: 600, color: 'text.secondary', px: 0.5 }}
+              >
+                {pushTestFeedback}
+              </Typography>
+            )}
           </Box>
         )}
 

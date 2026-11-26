@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .broker import notification_broker
-from .models import Notification
+from .models import Notification, PushSubscription
 from .serializers import (
     NotificationSerializer,
     PushSubscriptionUpsertSerializer,
@@ -18,9 +18,11 @@ from .services import (
     clear_all_notifications,
     delete_notification,
     get_notification_stream_snapshot,
+    get_vapid_keys,
     mark_all_read,
     mark_notification_read,
     remove_push_subscription,
+    schedule_test_web_push,
     upsert_push_subscription,
 )
 
@@ -187,20 +189,37 @@ class NotificationClearAllView(APIView):
 
 
 class VapidPublicKeyView(APIView):
-    """Return the server's VAPID public key so the PWA can subscribe via PushManager."""
+    """Return the server's VAPID public key and current user subscription count."""
 
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        public_key = (getattr(settings, 'VAPID_PUBLIC_KEY', '') or '').strip()
-        private_key = (getattr(settings, 'VAPID_PRIVATE_KEY', '') or '').strip()
+        public_key, private_key, _ = get_vapid_keys()
+        sub_count = PushSubscription.objects.filter(user=request.user).count()
         return Response(
             {
                 'public_key': public_key,
                 'enabled': bool(public_key and private_key),
+                'subscription_count': sub_count,
             },
             status=status.HTTP_200_OK,
         )
+
+
+class PushTestView(APIView):
+    """Trigger a 5-second delayed Web Push so the user can swipe away the PWA and test background wakeup."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            delay = float(request.data.get('delay_seconds', 5))
+        except (TypeError, ValueError):
+            delay = 5.0
+        result = schedule_test_web_push(user=request.user, delay_seconds=delay)
+        if not result.get('ok'):
+            return Response({'detail': result.get('reason')}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(result, status=status.HTTP_202_ACCEPTED)
 
 
 class PushSubscribeView(APIView):
