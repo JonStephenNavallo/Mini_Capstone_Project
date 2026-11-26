@@ -184,8 +184,8 @@ def schedule_test_web_push(*, user, delay_seconds: float = 5.0) -> dict:
             payload_str = json.dumps(
                 {
                     'id': f'test-{uuid.uuid4()}',
-                    'title': 'Lost & Found Background Alert',
-                    'body': 'Background Web Push is active even when the app is closed!',
+                    'title': 'OSAS Campus Lost & Found',
+                    'body': 'Notification check complete for your campus portal account.',
                     'category': 'SYSTEM',
                     'link_path': link_path,
                 },

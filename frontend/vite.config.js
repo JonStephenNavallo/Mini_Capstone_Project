@@ -54,10 +54,6 @@ const pushHandler = (event) => {
       linkPath: targetPath,
       id: notifId,
     },
-    actions: [
-      { action: 'open', title: 'View' },
-      { action: 'close', title: 'Dismiss' },
-    ],
   };
 
   event.waitUntil(self.registration.showNotification(data.title, options));
