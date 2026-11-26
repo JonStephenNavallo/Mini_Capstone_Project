@@ -41,3 +41,37 @@ class Notification(models.Model):
 
     def __str__(self):
         return f'{self.recipient_id}: {self.title}'
+
+
+class PushSubscription(models.Model):
+    """
+    Browser/PWA Web Push subscription bound to an authenticated user's device.
+    Keyed uniquely by `endpoint` so account switches on the same device cleanly
+    rebind the subscription to the active user without leaking alerts across accounts.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='push_subscriptions',
+    )
+    endpoint = models.URLField(max_length=1024, unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    user_agent = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'notification_push_subscriptions'
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(
+                fields=['user', '-updated_at'],
+                name='idx_pushsub_user_updated',
+            ),
+        ]
+
+    def __str__(self):
+        return f'PushSubscription(user={self.user_id}, endpoint={self.endpoint[:48]}...)'

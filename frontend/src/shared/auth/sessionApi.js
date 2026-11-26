@@ -6,6 +6,7 @@ import {
   setSessionPhase,
 } from './sessionBoundary.js';
 import { ROLE_HOME, loginPath } from './routePolicy.js';
+import { unsubscribeDeviceWebPush } from '../hooks/useNotifications.js';
 
 export const CURRENT_USER_KEY = ['auth', 'currentUser'];
 let identity;
@@ -73,6 +74,7 @@ export function logoutSession(queryClient) {
     readSession,
     requestLogout: async () => {
       await api.get('/auth/csrf/', { sessionControl: true });
+      await unsubscribeDeviceWebPush();
       await api.post('/auth/logout/', {}, { sessionControl: true });
     },
     navigate: (path) => window.location.replace(path),

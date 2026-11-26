@@ -27,3 +27,9 @@ services:
         sync: false
       - key: CLOUDINARY_URL
         sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_CLAIMS_EMAIL
+        value: mailto:osas@campus.edu

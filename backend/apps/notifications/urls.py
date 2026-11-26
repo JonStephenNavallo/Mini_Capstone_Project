@@ -5,6 +5,9 @@ from .views import (
     NotificationListView,
     NotificationReadAllView,
     NotificationReadView,
+    PushSubscribeView,
+    PushUnsubscribeView,
+    VapidPublicKeyView,
     notification_stream_view,
 )
 
@@ -13,6 +16,9 @@ urlpatterns = [
     path('stream/', notification_stream_view, name='notifications-stream'),
     path('read-all/', NotificationReadAllView.as_view(), name='notifications-read-all'),
     path('clear/', NotificationClearAllView.as_view(), name='notifications-clear'),
+    path('push/vapid-public-key/', VapidPublicKeyView.as_view(), name='notifications-vapid-key'),
+    path('push/subscribe/', PushSubscribeView.as_view(), name='notifications-push-subscribe'),
+    path('push/unsubscribe/', PushUnsubscribeView.as_view(), name='notifications-push-unsubscribe'),
     path('<uuid:pk>/', NotificationDetailView.as_view(), name='notifications-detail'),
     path('<uuid:pk>/read/', NotificationReadView.as_view(), name='notifications-read'),
 ]

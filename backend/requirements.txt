@@ -8,3 +8,4 @@ dj-database-url==2.3.0
 psycopg[binary]==3.2.6
 cloudinary==1.44.0
 django-cloudinary-storage==0.3.0
+pywebpush==2.0.3

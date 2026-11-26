@@ -64,6 +64,7 @@ export default defineConfig(() => {
         ]
       },
       workbox: {
+        importScripts: ['/push-sw.js'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallbackDenylist: [/^\/api/, /^\/media/],
       },

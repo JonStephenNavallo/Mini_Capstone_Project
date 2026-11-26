@@ -9,13 +9,19 @@ from rest_framework.views import APIView
 
 from .broker import notification_broker
 from .models import Notification
-from .serializers import NotificationSerializer
+from .serializers import (
+    NotificationSerializer,
+    PushSubscriptionUpsertSerializer,
+    PushUnsubscribeSerializer,
+)
 from .services import (
     clear_all_notifications,
     delete_notification,
     get_notification_stream_snapshot,
     mark_all_read,
     mark_notification_read,
+    remove_push_subscription,
+    upsert_push_subscription,
 )
 
 
@@ -178,3 +184,56 @@ class NotificationClearAllView(APIView):
     def delete(self, request):
         deleted_count = clear_all_notifications(user=request.user)
         return Response({'deleted_count': deleted_count}, status=status.HTTP_200_OK)
+
+
+class VapidPublicKeyView(APIView):
+    """Return the server's VAPID public key so the PWA can subscribe via PushManager."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        public_key = (getattr(settings, 'VAPID_PUBLIC_KEY', '') or '').strip()
+        private_key = (getattr(settings, 'VAPID_PRIVATE_KEY', '') or '').strip()
+        return Response(
+            {
+                'public_key': public_key,
+                'enabled': bool(public_key and private_key),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PushSubscribeView(APIView):
+    """Register or refresh the authenticated user's browser/PWA Web Push subscription."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = PushSubscriptionUpsertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+        keys = validated['keys']
+        user_agent = validated.get('user_agent') or request.META.get('HTTP_USER_AGENT', '')
+        sub = upsert_push_subscription(
+            user=request.user,
+            endpoint=validated['endpoint'],
+            p256dh=keys['p256dh'],
+            auth=keys['auth'],
+            user_agent=user_agent,
+        )
+        return Response({'id': str(sub.id), 'subscribed': True}, status=status.HTTP_201_CREATED)
+
+
+class PushUnsubscribeView(APIView):
+    """Unregister a browser/PWA Web Push subscription owned by the authenticated user."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = PushUnsubscribeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        removed = remove_push_subscription(
+            user=request.user,
+            endpoint=serializer.validated_data['endpoint'],
+        )
+        return Response({'removed': removed}, status=status.HTTP_200_OK)

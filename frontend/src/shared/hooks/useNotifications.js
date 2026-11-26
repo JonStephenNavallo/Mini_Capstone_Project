@@ -8,7 +8,7 @@ const BROADCAST_CHANNEL_NAME = 'osas_lnf_notifications_sync';
 /**
  * Module-scoped singleton manager adapted from Capstone_Project_Stg2 so multiple
  * consumers (`Topbar` badge and `NotificationsDrawer` panel) share a single active
- * EventSource SSE stream and BroadcastChannel per authenticated user session.
+ * EventSource SSE stream, BroadcastChannel, and Web Push subscription sync per session.
  */
 const streamManager = {
   eventSource: null,
@@ -19,6 +19,8 @@ const streamManager = {
   knownIds: new Set(),
   initialLoadComplete: false,
   lastEventId: '',
+  syncedPushKey: '',
+  pushSyncPromise: null,
 };
 
 function getNotificationsQueryKey(userId) {
@@ -30,20 +32,141 @@ function getBrowserNotificationPermission() {
   return Notification.permission;
 }
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i += 1) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+function keysMatch(bufferA, arrayB) {
+  if (!bufferA || !arrayB) return false;
+  const viewA = new Uint8Array(bufferA);
+  if (viewA.length !== arrayB.length) return false;
+  for (let i = 0; i < viewA.length; i += 1) {
+    if (viewA[i] !== arrayB[i]) return false;
+  }
+  return true;
+}
+
 /**
- * Show a native device/browser notification. Prefers ServiceWorkerRegistration.showNotification()
- * so Android Chrome PWAs display native notification banners without throwing Illegal constructor,
- * falling back cleanly to `new Notification()` on desktop browsers without an active SW.
+ * Register or refresh this device's VAPID Web Push subscription on the backend so
+ * notifications still arrive when the mobile PWA is swiped away from Recent Apps.
+ * Fails silently if VAPID keys are not configured or PushManager is unsupported.
  */
-function triggerBrowserNotification(title, body, linkPath = '') {
+export async function syncWebPushSubscription(userId) {
+  if (!userId || typeof window === 'undefined') return false;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    return false;
+  }
+  if (Notification.permission !== 'granted') return false;
+
+  if (streamManager.pushSyncPromise) {
+    return streamManager.pushSyncPromise;
+  }
+
+  streamManager.pushSyncPromise = (async () => {
+    try {
+      const { data: vapid } = await api.get('/notifications/push/vapid-public-key/');
+      if (!vapid?.enabled || !vapid?.public_key) return false;
+
+      const applicationServerKey = urlBase64ToUint8Array(vapid.public_key);
+      const registration = await navigator.serviceWorker.ready;
+      if (!registration?.pushManager) return false;
+
+      let subscription = await registration.pushManager.getSubscription();
+      if (subscription && subscription.options?.applicationServerKey) {
+        if (!keysMatch(subscription.options.applicationServerKey, applicationServerKey)) {
+          await subscription.unsubscribe();
+          subscription = null;
+        }
+      }
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+      }
+
+      const serialized = subscription.toJSON();
+      if (!serialized?.endpoint || !serialized?.keys?.p256dh || !serialized?.keys?.auth) {
+        return false;
+      }
+
+      const cacheKey = `${userId}:${serialized.endpoint}`;
+      if (streamManager.syncedPushKey === cacheKey) {
+        return true;
+      }
+
+      await api.post('/notifications/push/subscribe/', {
+        endpoint: serialized.endpoint,
+        keys: {
+          p256dh: serialized.keys.p256dh,
+          auth: serialized.keys.auth,
+        },
+        user_agent: navigator.userAgent || '',
+      });
+
+      streamManager.syncedPushKey = cacheKey;
+      return true;
+    } catch {
+      // Keep existing SSE notifications working even if Web Push registration fails
+      return false;
+    } finally {
+      streamManager.pushSyncPromise = null;
+    }
+  })();
+
+  return streamManager.pushSyncPromise;
+}
+
+/**
+ * Best-effort Web Push unregistration invoked right before session logout so a shared
+ * device stops receiving background pushes for the signed-out user. Never throws.
+ */
+export async function unsubscribeDeviceWebPush() {
+  streamManager.syncedPushKey = '';
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return;
+  }
+  try {
+    const registration = await navigator.serviceWorker.getRegistration();
+    const subscription = await registration?.pushManager?.getSubscription();
+    if (!subscription) return;
+    const endpoint = subscription.endpoint;
+    if (endpoint) {
+      await api.post(
+        '/notifications/push/unsubscribe/',
+        { endpoint },
+        { sessionControl: true }
+      );
+    }
+  } catch {
+    // Never block or fail logout on push cleanup errors
+  }
+}
+
+/**
+ * Show a native device/browser notification. Uses a deterministic `tag` matching the
+ * Service Worker's Web Push handler (`osas-lnf-notif-<id>`) so the OS deduplicates
+ * foreground SSE notifications and background Web Push deliveries without double banners.
+ */
+function triggerBrowserNotification(title, body, linkPath = '', notifId = '') {
   if (typeof window === 'undefined' || !('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
 
+  const tag = notifId ? `osas-lnf-notif-${notifId}` : undefined;
   const options = {
     body,
     icon: '/pwa-192x192.png',
     badge: '/pwa-192x192.png',
-    data: { linkPath },
+    ...(tag ? { tag, renotify: false } : {}),
+    data: { linkPath, id: notifId ? String(notifId) : '' },
   };
 
   if ('serviceWorker' in navigator && navigator.serviceWorker?.ready) {
@@ -90,7 +213,7 @@ function applyIncomingNotification(queryClient, userId, payload) {
   streamManager.knownIds.add(incoming.id);
 
   if (isNewId && streamManager.initialLoadComplete && !incoming.is_read) {
-    triggerBrowserNotification(incoming.title, incoming.message, incoming.link_path);
+    triggerBrowserNotification(incoming.title, incoming.message, incoming.link_path, incoming.id);
   }
 
   const queryKey = getNotificationsQueryKey(userId);
@@ -166,6 +289,7 @@ function stopRealtimeSync(resetSessionTracking = false) {
     streamManager.knownIds.clear();
     streamManager.initialLoadComplete = false;
     streamManager.lastEventId = '';
+    streamManager.syncedPushKey = '';
   }
 }
 
@@ -251,9 +375,7 @@ function startRealtimeSync(queryClient, userId) {
 }
 
 /**
- * Shared TanStack Query + Server-Sent Events (SSE) hook for user notifications.
- * Replaces 5-second short polling with an EventSource push stream at `/api/notifications/stream/`
- * plus BroadcastChannel cross-tab synchronization.
+ * Shared TanStack Query + Server-Sent Events (SSE) + VAPID Web Push hook for user notifications.
  */
 export function useNotifications(currentUser) {
   const queryClient = useQueryClient();
@@ -270,13 +392,16 @@ export function useNotifications(currentUser) {
     try {
       const result = await Notification.requestPermission();
       setNotificationPermission(result);
+      if (result === 'granted' && userId) {
+        await syncWebPushSubscription(userId);
+      }
       return result;
     } catch {
       const fallback = getBrowserNotificationPermission();
       setNotificationPermission(fallback);
       return fallback;
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -286,6 +411,11 @@ export function useNotifications(currentUser) {
 
     streamManager.subscriberCount += 1;
     startRealtimeSync(queryClient, userId);
+
+    // Automatically register/refresh VAPID Web Push if permission was already granted
+    if (getBrowserNotificationPermission() === 'granted') {
+      syncWebPushSubscription(userId);
+    }
 
     return () => {
       streamManager.subscriberCount = Math.max(0, streamManager.subscriberCount - 1);
@@ -322,7 +452,7 @@ export function useNotifications(currentUser) {
       if (!streamManager.knownIds.has(n.id)) {
         streamManager.knownIds.add(n.id);
         if (streamManager.initialLoadComplete && !n.is_read) {
-          triggerBrowserNotification(n.title, n.message);
+          triggerBrowserNotification(n.title, n.message, n.link_path, n.id);
         }
       }
     });
